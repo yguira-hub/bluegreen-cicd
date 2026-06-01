@@ -20,7 +20,9 @@ pipeline {
                     sh """
                         ssh -o StrictHostKeyChecking=no ${APP_VM_USER}@${APP_VM_IP} '
                             cd ~/bluegreen-cicd && git pull origin main
-                            cd ~/bluegreen-cicd/app && docker compose up -d --build
+                            cd ~/bluegreen-cicd/app
+                            docker compose down
+                            docker compose up -d --build
                         '
                     """
                 }
