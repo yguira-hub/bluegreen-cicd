@@ -1,0 +1,22 @@
+{
+  "title": "Blue/Green Deployment Dashboard",
+  "panels": [
+    {
+      "title": "Request Rate — Blue vs Green",
+      "type": "graph",
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "rate(app_requests_total{instance=\"192.168.64.8:8080\"}[1m])", "legendFormat": "Blue"},
+        {"expr": "rate(app_requests_total{instance=\"192.168.64.8:8081\"}[1m])", "legendFormat": "Green"}
+      ]
+    },
+    {
+      "title": "Active Environment",
+      "type": "stat",
+      "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+      "targets": [
+        {"expr": "up{job=\"flask-app\"}", "legendFormat": "{{instance}}"}
+      ]
+    }
+  ]
+}
