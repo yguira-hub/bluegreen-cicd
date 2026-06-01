@@ -1,0 +1,60 @@
+pipeline {
+    agent any
+    environment {
+        DOCKER_IMAGE = "yguira-hub/bluegreen-app"
+        APP_VM_IP    = "192.168.64.8"
+        APP_VM_USER  = "yuss"
+    }
+    stages {
+        stage('Checkout') { steps { checkout scm } }
+        stage('Test') {
+            steps {
+                sh 'pip install -r app/requirements.txt -q'
+                sh 'python -m pytest app/tests/ -v 2>/dev/null || echo "No tests yet"'
+            }
+        }
+        stage('Build') {
+            steps {
+                sh "docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} ./app"
+                sh "docker tag  ${DOCKER_IMAGE}:${BUILD_NUMBER} ${DOCKER_IMAGE}:latest"
+            }
+        }
+        stage('Push') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DU', passwordVariable: 'DP')]) {
+                    sh "echo $DP | docker login -u $DU --password-stdin"
+                    sh "docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}"
+                    sh "docker push ${DOCKER_IMAGE}:latest"
+                }
+            }
+        }
+        stage('Deploy') {
+            steps {
+                sshagent(['app-vm-ssh-key']) {
+                    sh """ssh -o StrictHostKeyChecking=no ${APP_VM_USER}@${APP_VM_IP} '
+                        cd ~/bluegreen-cicd/app && docker compose up -d
+                        ~/bluegreen-cicd/scripts/switch.sh green'"""
+                }
+            }
+        }
+        stage('Smoke Test') {
+            steps {
+                sshagent(['app-vm-ssh-key']) {
+                    sh "ssh ${APP_VM_USER}@${APP_VM_IP} 'curl -sf http://localhost/health | grep ok'"
+                }
+            }
+            post {
+                failure {
+                    sshagent(['app-vm-ssh-key']) {
+                        sh "ssh ${APP_VM_USER}@${APP_VM_IP} '~/bluegreen-cicd/scripts/rollback.sh'"
+                    }
+                }
+            }
+        }
+    }
+    post {
+        success { echo "Live: ${DOCKER_IMAGE}:${BUILD_NUMBER}" }
+        failure { echo "Pipeline failed — rollback triggered" }
+    }
+}

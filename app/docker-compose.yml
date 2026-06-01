@@ -1,0 +1,22 @@
+services:
+  app-blue:
+    build: .
+    container_name: app-blue
+    restart: unless-stopped
+    environment:
+      - APP_VERSION=v1
+      - APP_COLOR=blue
+      - APP_PORT=5000
+    ports:
+      - "8080:5000"
+
+  app-green:
+    build: .
+    container_name: app-green
+    restart: unless-stopped
+    environment:
+      - APP_VERSION=v1
+      - APP_COLOR=green
+      - APP_PORT=5000
+    ports:
+      - "8081:5000"
